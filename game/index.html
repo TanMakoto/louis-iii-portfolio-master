@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JIBCHAIN Defender 🛡️</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Prompt:wght@300;400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="game-container"></div>
+
+    <!-- Game UI Overlay -->
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="stat-box">
+                <span class="label">LIVES</span>
+                <span id="lives-val" class="value">20</span>
+            </div>
+            <div class="stat-box">
+                <span class="label">JIB COINS</span>
+                <span id="coins-val" class="value">100</span>
+            </div>
+            <div class="stat-box block-info">
+                <span class="label">LATEST BLOCK</span>
+                <span id="block-val" class="value">#-------</span>
+            </div>
+        </div>
+
+        <div class="hud-bottom">
+            <div class="tower-selector">
+                <button class="tower-btn active" data-type="basic" title="Basic Laser (25 JIB)">
+                    <div class="icon">🔫</div>
+                    <span class="price">25</span>
+                </button>
+                <button class="tower-btn" data-type="heavy" title="Heavy Cannon (60 JIB)">
+                    <div class="icon">💣</div>
+                    <span class="price">60</span>
+                </button>
+                <button class="tower-btn" data-type="slow" title="Ice Beam (40 JIB)">
+                    <div class="icon">❄️</div>
+                    <span class="price">40</span>
+                </button>
+            </div>
+            <div class="game-controls">
+                <button id="start-wave-btn" class="main-btn">START WAVE</button>
+            </div>
+        </div>
+
+        <!-- Wave Message -->
+        <div id="msg-overlay" class="hidden">
+            <h1 id="msg-text">WAVE 1</h1>
+        </div>
+    </div>
+
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module" src="blockchain.js"></script>
+    <script type="module" src="engine.js"></script>
+</body>
+
+</html>
