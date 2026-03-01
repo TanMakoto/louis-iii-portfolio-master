@@ -122,13 +122,13 @@ body {
 .toggle-btn.active[data-type="waterDepth"] {
   background-color: var(--card-bg);
   color: var(--primary-blue);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-btn.active[data-type="batteryVoltage"] {
   background-color: var(--card-bg);
   color: var(--primary-green);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .select-control {
@@ -139,6 +139,16 @@ body {
   font-size: 0.875rem;
   color: var(--text-main);
   outline: none;
+}
+
+/* 3D Container */
+#three-container {
+  width: 100%;
+  height: 400px;
+  background: linear-gradient(180deg, #f0fdfa 0%, #e0f2fe 100%);
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
 }
 
 /* Chart */
@@ -160,7 +170,8 @@ table {
   text-align: left;
 }
 
-th, td {
+th,
+td {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
 }
@@ -208,7 +219,7 @@ tbody tr:nth-child(even) {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255,255,255,0.8);
+  background: rgba(255, 255, 255, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -227,8 +238,13 @@ tbody tr:nth-child(even) {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .error-msg {

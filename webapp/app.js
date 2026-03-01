@@ -381,7 +381,15 @@ function renderTable(fields, groupedData, rawData) {
         const stats = calcStats(i);
         const latestProccessed = latestRaw ? processValue(latestRaw.rawValues[i], field.unit) : null;
 
+        // Format based on field rules (mostly handled in processValue)
         let currentDisplay = latestProccessed ? latestProccessed.display : '-';
+
+        // Pass water depth to 3D scene
+        if (field.name.toLowerCase().includes('water_depth') && latestProccessed) {
+            if (typeof window.update3DWaterLevel === 'function') {
+                window.update3DWaterLevel(latestProccessed.val);
+            }
+        }
 
         const baseUnitMatch = field.unit.match(/^([a-zA-Z]+)\s*x/);
         const baseUnit = baseUnitMatch ? baseUnitMatch[1] : field.unit;

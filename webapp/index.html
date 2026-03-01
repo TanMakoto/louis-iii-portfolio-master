@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,96 +8,112 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<div class="container">
-    <div class="card">
-        <!-- Header Section -->
-        <div class="card-header">
-            <h1 class="card-title">Latest Sensor Data</h1>
-            <h2 class="card-subtitle"><span id="storeNickname">Loading...</span> - <span id="storeDescription">...</span></h2>
-            
-            <div class="meta-info">
-                <div class="meta-item">
-                    <span class="status-indicator"></span>
-                    <span id="currentBlock">Current Block: ...</span>
-                </div>
-                <div class="meta-item">
-                    <span id="lastUpdated">Last Updated: ...</span>
-                </div>
-                <div class="meta-item">
-                    <a href="#" id="storeLink" class="external-link" target="_blank" rel="noopener noreferrer">
-                        <span id="storeAddress">...</span> ↗
-                    </a>
+    <div class="container">
+        <div class="card">
+            <!-- Header Section -->
+            <div class="card-header">
+                <h1 class="card-title">Latest Sensor Data</h1>
+                <h2 class="card-subtitle"><span id="storeNickname">Loading...</span> - <span
+                        id="storeDescription">...</span></h2>
+
+                <div class="meta-info">
+                    <div class="meta-item">
+                        <span class="status-indicator"></span>
+                        <span id="currentBlock">Current Block: ...</span>
+                    </div>
+                    <div class="meta-item">
+                        <span id="lastUpdated">Last Updated: ...</span>
+                    </div>
+                    <div class="meta-item">
+                        <a href="#" id="storeLink" class="external-link" target="_blank" rel="noopener noreferrer">
+                            <span id="storeAddress">...</span> ↗
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Controls Section -->
-        <div class="controls-section">
-            <div class="filter-row">
-                <div class="toggle-group">
-                    <button id="toggleWater" class="toggle-btn active" data-type="waterDepth">Water Depth</button>
-                    <button id="toggleVoltage" class="toggle-btn" data-type="batteryVoltage">Battery Voltage</button>
+            <!-- Controls Section -->
+            <div class="controls-section">
+                <div class="filter-row">
+                    <div class="toggle-group">
+                        <button id="toggleWater" class="toggle-btn active" data-type="waterDepth">Water Depth</button>
+                        <button id="toggleVoltage" class="toggle-btn" data-type="batteryVoltage">Battery
+                            Voltage</button>
+                    </div>
+                    <div>
+                        <!-- Grouping selector -->
+                        <select id="groupingInterval" class="select-control">
+                            <option value="30">30 Min Intervals</option>
+                            <option value="60">1 Hour Intervals</option>
+                            <option value="360">6 Hour Intervals</option>
+                            <option value="1440">24 Hour Intervals</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3D Scene Section -->
+            <div id="three-container"></div>
+
+            <!-- Chart Section -->
+            <div class="chart-container">
+                <div id="chartLoader" class="overlay">
+                    <div class="loader"></div> <span>Loading Data...</span>
+                </div>
+                <div id="chartError" class="overlay error-msg" style="display: none;"></div>
+                <canvas id="sensorChart"></canvas>
+            </div>
+
+            <!-- Data Table Section -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Current</th>
+                            <th>Min</th>
+                            <th>Max</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--text-muted);">Loading constraints...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Section -->
+            <div class="card-footer">
+                <div id="footerUpdated">Last Updated: ...</div>
+                <div>
+                    Store Owner: <a href="#" id="ownerLink" class="external-link" target="_blank"
+                        rel="noopener noreferrer">...</a>
                 </div>
                 <div>
-                     <!-- Grouping selector -->
-                    <select id="groupingInterval" class="select-control">
-                        <option value="30">30 Min Intervals</option>
-                        <option value="60">1 Hour Intervals</option>
-                        <option value="360">6 Hour Intervals</option>
-                        <option value="1440">24 Hour Intervals</option>
-                    </select>
+                    Deployed Block: <a href="#" id="deployedBlockLink" class="external-link" target="_blank"
+                        rel="noopener noreferrer">...</a>
                 </div>
+                <div id="sensorCount">Sensor Count: ...</div>
             </div>
-        </div>
-
-        <!-- Chart Section -->
-        <div class="chart-container">
-            <div id="chartLoader" class="overlay">
-                <div class="loader"></div> <span>Loading Data...</span>
-            </div>
-            <div id="chartError" class="overlay error-msg" style="display: none;"></div>
-            <canvas id="sensorChart"></canvas>
-        </div>
-
-        <!-- Data Table Section -->
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Metric</th>
-                        <th>Current</th>
-                        <th>Min</th>
-                        <th>Max</th>
-                    </tr>
-                </thead>
-                <tbody id="dataTableBody">
-                    <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Loading constraints...</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Footer Section -->
-        <div class="card-footer">
-            <div id="footerUpdated">Last Updated: ...</div>
-            <div>
-                Store Owner: <a href="#" id="ownerLink" class="external-link" target="_blank" rel="noopener noreferrer">...</a>
-            </div>
-            <div>
-                Deployed Block: <a href="#" id="deployedBlockLink" class="external-link" target="_blank" rel="noopener noreferrer">...</a>
-            </div>
-            <div id="sensorCount">Sensor Count: ...</div>
         </div>
     </div>
-</div>
 
-<!-- Viem Core Script (via unpkg for vanilla browser usage) -->
-<script type="module" src="app.js"></script>
+    <!-- Viem Core Script (via unpkg for vanilla browser usage) -->
+    <script type="module">
+        import { init3DScene } from './scene3d.js';
+        init3DScene('three-container');
+    </script>
+    <script type="module" src="app.js"></script>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 
 </body>
+
 </html>
