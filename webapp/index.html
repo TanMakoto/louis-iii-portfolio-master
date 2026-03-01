@@ -103,10 +103,22 @@
         </div>
     </div>
 
-    <!-- Viem Core Script (via unpkg for vanilla browser usage) -->
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+            }
+        }
+    </script>
     <script type="module">
         import { init3DScene } from './scene3d.js';
-        init3DScene('three-container');
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                init3DScene('three-container');
+            }, 500);
+        });
     </script>
     <script type="module" src="app.js"></script>
 

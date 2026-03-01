@@ -1,5 +1,5 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/controls/OrbitControls.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 let scene, camera, renderer, controls;
 let waterMesh, pillarMesh, group;
@@ -7,44 +7,48 @@ let particles = [];
 let targetWaterY = -2; // Default hidden level
 let currentWaterY = -2;
 
-// Toon Materials for Anime Look
-const toonMaterialWater = new THREE.MeshToonMaterial({
-    color: 0x3bb2f6, // Bright anime blue
+// Standard Materials (More reliable than Toon for debugging)
+const materialWater = new THREE.MeshStandardMaterial({
+    color: 0x3b82f6,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.8,
     side: THREE.DoubleSide
 });
 
-const toonMaterialPillar = new THREE.MeshToonMaterial({
-    color: 0xe5e7eb, // Light gray pillar
+const materialPillar = new THREE.MeshStandardMaterial({
+    color: 0x9ca3af, // Light gray pillar
 });
 
-const toonMaterialBase = new THREE.MeshToonMaterial({
-    color: 0x4b5563, // Dark base
+const materialBase = new THREE.MeshStandardMaterial({
+    color: 0x374151, // Dark base
 });
 
 export function init3DScene(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
+    // Get true dimensions, fallback to 400 if not rendered yet
+    const width = container.offsetWidth || container.clientWidth || 800;
+    const height = container.offsetHeight || container.clientHeight || 400;
+
     // 1. Scene Setup
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf3f4f6); // Match UI background
-    // Add subtle fog for depth
-    scene.fog = new THREE.FogExp2(0xf3f4f6, 0.02);
+    scene.background = new THREE.Color(0xf0fdfa); // Light cyan background
 
     // 2. Camera Setup
-    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(8, 6, 12);
+    camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(15, 10, 25);
+    camera.lookAt(0, 0, 0);
 
     // 3. Renderer Setup
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true; // Shadows back on
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
-    // 4. Lighting (Anime style relies on strong directional + ambient)
+    // 4. Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
@@ -55,7 +59,6 @@ export function init3DScene(containerId) {
     dirLight.shadow.mapSize.height = 1024;
     scene.add(dirLight);
 
-    // Outline Light
     const backLight = new THREE.DirectionalLight(0x3b82f6, 0.5);
     backLight.position.set(-10, 10, -10);
     scene.add(backLight);
@@ -64,35 +67,34 @@ export function init3DScene(containerId) {
     group = new THREE.Group();
     scene.add(group);
 
-    // A. Base Platform
-    const baseGeo = new THREE.CylinderGeometry(3, 3.5, 0.5, 32);
-    const base = new THREE.Mesh(baseGeo, toonMaterialBase);
-    base.position.y = -2;
+    // Base Platform
+    const baseGeo = new THREE.CylinderGeometry(5, 6, 1, 32);
+    const base = new THREE.Mesh(baseGeo, materialBase);
+    base.position.y = -4;
     base.receiveShadow = true;
     group.add(base);
 
-    // B. Sensor Pillar (The "FloodBoy")
-    const pillarGeo = new THREE.CylinderGeometry(0.5, 0.5, 8, 16);
-    pillarMesh = new THREE.Mesh(pillarGeo, toonMaterialPillar);
-    pillarMesh.position.y = 2; // Rises from base
+    // Sensor Pillar (The "FloodBoy")
+    const pillarGeo = new THREE.CylinderGeometry(1, 1, 15, 16);
+    pillarMesh = new THREE.Mesh(pillarGeo, materialPillar);
+    pillarMesh.position.y = 3;
     pillarMesh.castShadow = true;
     pillarMesh.receiveShadow = true;
     group.add(pillarMesh);
 
-    // C. Water Surface
-    const waterGeo = new THREE.CylinderGeometry(2.8, 2.8, 4, 32);
-    // We use a cylinder so it fits over the base
-    waterMesh = new THREE.Mesh(waterGeo, toonMaterialWater);
-    waterMesh.position.y = -2; // Start empty
+    // Water Surface
+    const waterGeo = new THREE.CylinderGeometry(4.8, 4.8, 8, 32);
+    waterMesh = new THREE.Mesh(waterGeo, materialWater);
+    waterMesh.position.y = -4; // Start empty
     waterMesh.receiveShadow = true;
     group.add(waterMesh);
 
-    // Add grid lines for anime tech vibe
+    // Anime tech vibe grid
     const gridHelper = new THREE.GridHelper(10, 10, 0x3b82f6, 0xe5e7eb);
-    gridHelper.position.y = -1.99;
+    gridHelper.position.y = -3.99;
     scene.add(gridHelper);
 
-    // D. Particles (Anime Magic Dust / Data)
+    // Particles (Anime Magic Dust)
     const particleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
     const particleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
 
@@ -115,13 +117,25 @@ export function init3DScene(containerId) {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 - 0.1; // Don't go below ground
+    controls.maxPolarAngle = Math.PI / 2 - 0.1;
     controls.minDistance = 5;
-    controls.maxDistance = 20;
+    controls.maxDistance = 30;
     controls.target.set(0, 1, 0);
 
     // 7. Event Listeners
-    window.addEventListener('resize', onWindowResize);
+    const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+            const { width, height } = entry.contentRect;
+            if (width > 0 && height > 0) {
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+            }
+        }
+    });
+    resizeObserver.observe(container);
+
+    renderer.render(scene, camera);
 
     // 8. Start Loop
     animate();
@@ -129,42 +143,30 @@ export function init3DScene(containerId) {
 
 // Global function to be called from app.js
 window.update3DWaterLevel = function (levelRaw) {
-    // Determine mapping:
-    // Let's say 0m = Y: -1.8 (bottom of pillar)
-    // Let's say 1.0m = Y: +2.0 (high up the pillar)
-    // Map linearly or use a visually appealing curve
-
-    // Assume typical values are 0.4 - 0.6. Let's make 0m -> -2, 1m -> 2
     let mappedY = -2 + (levelRaw * 4);
-
-    // Clamp values so it doesn't pop out weirdly
     mappedY = Math.max(-2, Math.min(mappedY, 4));
-
     targetWaterY = mappedY;
 }
 
 function animate() {
     requestAnimationFrame(animate);
 
-    // Smoothly interpolate water level (Anime easing)
+    // Smoothly interpolate water level
     currentWaterY += (targetWaterY - currentWaterY) * 0.05;
     waterMesh.position.y = currentWaterY;
 
-    // Pulse water scale slightly for "breathing" effect
+    // Pulse water scale slightly
     const time = Date.now() * 0.001;
     waterMesh.scale.x = 1 + Math.sin(time * 2) * 0.02;
     waterMesh.scale.z = 1 + Math.sin(time * 2) * 0.02;
 
-    // Rotate the whole group slowly
     group.rotation.y += 0.002;
 
-    // Move particles
     particles.forEach(p => {
         p.position.y += p.userData.speed;
         p.position.x += Math.sin(time + p.userData.offset) * 0.01;
-
         if (p.position.y > 6) {
-            p.position.y = -2; // Reset to bottom
+            p.position.y = -2;
         }
     });
 
