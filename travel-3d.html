@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miku Train Sim 3D 🚂✨</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600&family=Inter:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #050608;
+            font-family: 'Inter', sans-serif;
+            color: white;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            pointer-events: none;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 30px;
+            border-radius: 40px;
+            backdrop-filter: blur(5px);
+        }
+
+        .btn {
+            background: rgba(56, 189, 248, 0.2);
+            border: 1px solid #38bdf8;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+
+        .btn:hover {
+            background: #38bdf8;
+            color: #000;
+        }
+
+        .stat {
+            color: #39c5bb;
+            font-weight: 700;
+        }
+
+        #speedometer {
+            font-size: 2rem;
+            margin-top: 10px;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="index.html" class="back-btn">← Back to Portfolio</a>
+
+    <div id="ui">
+        <h1 style="margin:0; font-family:'Outfit'; font-size:1.5rem; color:#39c5bb;">Miku Simulator 3D</h1>
+        <p style="margin:5px 0 15px; color:#94a3b8;">GPS: Northern Thailand Route</p>
+        <div id="location">Location: <span class="stat" id="loc-text">Loading...</span></div>
+        <div id="speedometer">Speed: <span class="stat" id="speed-text">0</span> <small>km/h</small></div>
+        <div style="margin-top:10px; font-size:0.8rem; color:#94a3b8;">
+            [W] Accelerate | [S] Brake | [C] Camera
+            <br><span style="font-size: 0.6rem; opacity: 1.0; color: #39c5bb; font-weight: bold;">v1.0.7 - High Speed &
+                Real-time Control Patch</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" id="start-btn">ENGAGE ENGINE</button>
+        <button class="btn" id="accel-btn" style="background: rgba(34, 197, 94, 0.2); border-color: #22c55e;">ACCEL
+            [W]</button>
+        <button class="btn" id="brake-btn" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444;">BRAKE
+            [S]</button>
+        <button class="btn" id="cam-btn">SWITCH VIEW</button>
+        <button class="btn" id="upload-btn" style="border-color: #39c5bb; color: #39c5bb;">UPLOAD KML 🛰️</button>
+        <input type="file" id="kml-input" accept=".kml" style="display: none;">
+    </div>
+
+    <!-- Three.js from CDN -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- Configuration ---
+        const CSV_URL = 'travel-phitsanulok.csv?v=1.0.4';
+        const SCALE = 5000; // Ultra Condensed (4x smaller than v1.0.9)
+
+        let scene, camera, renderer, train, track;
+        let points = [];
+        let waypoints = [];
+        let currentIndex = 0;
+        let speed = 0;
+        let maxSpeed = 0.5; // Represents 500 km/h
+        let isRunning = false;
+        let keys = { w: false, s: false };
+        let viewMode = 'follow'; // 'follow' or 'cockpit'
+
+        // UI elements
+        const locId = document.getElementById('loc-text');
+        const speedId = document.getElementById('speed-text');
+        const startBtn = document.getElementById('start-btn');
+        const accelBtn = document.getElementById('accel-btn');
+        const brakeBtn = document.getElementById('brake-btn');
+        const camBtn = document.getElementById('cam-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const kmlInput = document.getElementById('kml-input');
+
+        async function init() {
+            try {
+                // Scene Setup
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x0a0b1a); // Slightly lighter night sky
+                scene.fog = new THREE.FogExp2(0x0a0b1a, 0.001); // Thinner fog for better visibility
+
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+                camera.position.set(0, 10, 20); // Fallback position
+
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                document.body.appendChild(renderer.domElement);
+
+                // Lights
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // Stronger ambient
+                scene.add(ambientLight);
+
+                const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x1a2e1a, 1);
+                scene.add(hemiLight);
+
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(100, 200, 100);
+                scene.add(directionalLight);
+
+                // Environmental Setup
+                createEnvironment();
+
+                // Grid Floor (Optional, keeping as subtle reference)
+                const grid = new THREE.GridHelper(5000, 100, 0x38bdf8, 0x1e293b);
+                grid.position.y = -0.49;
+                grid.material.opacity = 0.2;
+                grid.material.transparent = true;
+                scene.add(grid);
+
+                // Start animation loop immediately so the screen isn't black
+                animate();
+
+                // Create placeholder train
+                createTrain();
+
+                // Load Data asynchronously
+                loadGPSData().then(() => {
+                    console.log("GPS Data loaded successfully, points:", points.length);
+                    if (points.length === 0) {
+                        locId.textContent = "Error: No GPS points found";
+                    }
+                }).catch(e => {
+                    console.error("GPS Load Error:", e);
+                    locId.textContent = "Load Error: " + e.message;
+                });
+
+                // Event Listeners
+                startBtn.addEventListener('click', () => {
+                    if (points.length < 2) return;
+                    isRunning = !isRunning;
+
+                    // Fix: Set initial speed if starting from 0
+                    if (isRunning && speed === 0) speed = 0.02;
+
+                    startBtn.textContent = isRunning ? "STOP ENGINE" : "ENGAGE ENGINE";
+                    startBtn.style.background = isRunning ? "rgba(239, 68, 68, 0.2)" : "rgba(56, 189, 248, 0.2)";
+                    startBtn.style.borderColor = isRunning ? "#ef4444" : "#38bdf8";
+                });
+
+                accelBtn.addEventListener('click', () => {
+                    speed = Math.min(speed + 0.02, maxSpeed); // +20 km/h per click
+                    if (!isRunning) {
+                        isRunning = true;
+                        updateStartButtonUI();
+                    }
+                });
+
+                brakeBtn.addEventListener('click', () => {
+                    speed = Math.max(speed - 0.02, 0);
+                    if (speed === 0 && isRunning) {
+                        // Keep running but stalled, or auto-stop? Let's stay running.
+                    }
+                });
+
+                camBtn.addEventListener('click', () => {
+                    viewMode = viewMode === 'follow' ? 'cockpit' : 'follow';
+                });
+
+                uploadBtn.addEventListener('click', () => kmlInput.click());
+                kmlInput.addEventListener('change', handleKMLUpload);
+
+                window.addEventListener('keydown', (e) => {
+                    const key = e.key.toLowerCase();
+                    if (key === 'w') keys.w = true;
+                    if (key === 's') keys.s = true;
+                    if (key === 'c') viewMode = viewMode === 'follow' ? 'cockpit' : 'follow';
+                });
+
+                window.addEventListener('keyup', (e) => {
+                    const key = e.key.toLowerCase();
+                    if (key === 'w') keys.w = false;
+                    if (key === 's') keys.s = false;
+                });
+            } catch (err) {
+                console.error("Initialization Error:", err);
+                document.getElementById('ui').innerHTML = `<h1 style="color:#ef4444">3D Error</h1><p>${err.message}</p>`;
+            }
+        }
+
+        async function handleKMLUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            locId.textContent = "Parsing KML...";
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+                    const coordString = xmlDoc.getElementsByTagName("coordinates")[0]?.textContent;
+
+                    if (!coordString) throw new Error("No <coordinates> tag found in KML");
+
+                    const newPoints = [];
+                    const pairs = coordString.trim().split(/\s+/);
+
+                    const firstPair = pairs[0].split(',');
+                    const originLon = parseFloat(firstPair[0]);
+                    const originLat = parseFloat(firstPair[1]);
+
+                    pairs.forEach(pair => {
+                        const [lon, lat] = pair.split(',').map(parseFloat);
+                        if (!isNaN(lat) && !isNaN(lon)) {
+                            const x = (lon - originLon) * SCALE * 0.95;
+                            const z = -(lat - originLat) * SCALE;
+                            newPoints.push(new THREE.Vector3(x, 0, z));
+                        }
+                    });
+
+                    if (newPoints.length < 2) throw new Error("Not enough points in KML");
+
+                    rebuildRoute(newPoints);
+                    locId.textContent = "Custom Route Loaded";
+                } catch (err) {
+                    alert("Error loading KML: " + err.message);
+                    locId.textContent = "KML Error";
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function updateStartButtonUI() {
+            startBtn.textContent = isRunning ? "STOP ENGINE" : "ENGAGE ENGINE";
+            startBtn.style.background = isRunning ? "rgba(239, 68, 68, 0.2)" : "rgba(56, 189, 248, 0.2)";
+            startBtn.style.borderColor = isRunning ? "#ef4444" : "#38bdf8";
+        }
+
+        function rebuildRoute(newPoints) {
+            // Stop engine
+            isRunning = false;
+            startBtn.textContent = "ENGAGE ENGINE";
+            startBtn.style.background = "rgba(56, 189, 248, 0.2)";
+            startBtn.style.borderColor = "#38bdf8";
+
+            // Remove old track
+            if (track) scene.remove(track);
+
+            points = newPoints;
+            waypoints = points.map(() => ({ locality: "Uploaded Route", updated: "Custom", battery: 100 }));
+            currentIndex = 0;
+
+            const curve = new THREE.CatmullRomCurve3(points);
+            const geometry = new THREE.TubeGeometry(curve, Math.min(400, points.length * 3), 0.2, 8, false);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x39c5bb, // Miku Cyan for custom routes
+                emissive: 0x39c5bb,
+                emissiveIntensity: 0.5,
+                wireframe: true
+            });
+            track = new THREE.Mesh(geometry, material);
+            scene.add(track);
+
+            // Reset train
+            train.position.copy(points[0]);
+            train.lookAt(points[1]);
+
+            // Spawn trees along the new route
+            spawnTreesAlongRoute();
+        }
+
+        function createEnvironment() {
+            // Grassy Ground
+            const groundGeo = new THREE.PlaneGeometry(20000, 20000);
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: 0x1a2e1a, // Brighter forest green
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.51;
+            scene.add(ground);
+
+            // Distant Hills - MEGA SIZE
+            for (let i = 0; i < 60; i++) {
+                const hillHeight = 50 + Math.random() * 150;
+                const hillGeo = new THREE.SphereGeometry(30 + Math.random() * 100, 32, 16);
+                const hillMat = new THREE.MeshStandardMaterial({
+                    color: 0x0a1f0a,
+                    flatShading: true
+                });
+                const hill = new THREE.Mesh(hillGeo, hillMat);
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 500 + Math.random() * 1500;
+                hill.position.set(Math.cos(angle) * dist, -10, Math.sin(angle) * dist);
+                hill.scale.y = 0.5;
+                scene.add(hill);
+            }
+            console.log("Environment: 60 Hills spawned.");
+        }
+
+        function spawnTreesAlongRoute() {
+            // Spawn trees every few points - ULTRA DENSE
+            for (let i = 0; i < points.length; i += 2) {
+                const pos = points[i];
+                for (let j = 0; j < 2; j++) {
+                    const tree = new THREE.Group();
+
+                    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                    trunk.position.y = 1;
+                    tree.add(trunk);
+
+                    const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+                    leaves.position.y = 3;
+                    tree.add(leaves);
+
+                    const offsetX = (Math.random() - 0.5) * 40;
+                    const offsetZ = (Math.random() - 0.5) * 40;
+
+                    if (Math.abs(offsetX) < 6) continue;
+
+                    tree.position.set(pos.x + offsetX, -0.5, pos.z + offsetZ);
+                    tree.scale.setScalar(1 + Math.random() * 3);
+                    treeGroup.add(tree);
+                }
+            }
+            scene.add(treeGroup);
+            console.log("Environment: Dense forest spawned.");
+        }
+
+        async function loadGPSData() {
+            console.log("Fetching CSV from:", CSV_URL);
+            const resp = await fetch(CSV_URL);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+
+            const text = await resp.text();
+            console.log("CSV Data received, length:", text.length);
+
+            const rows = text.split('\n').filter(row => row.trim().length > 0).slice(1);
+
+            if (rows.length === 0) throw new Error("CSV file is empty or has no data rows");
+
+            const originLat = 18.464717; // First point lat
+            const originLon = 99.05675;  // First point lon
+
+            rows.forEach((row, i) => {
+                const cols = parseCSVRow(row);
+                if (cols.length < 2) return;
+
+                const [lat, lon] = cols;
+                const latVal = parseFloat(lat);
+                const lonVal = parseFloat(lon);
+
+                if (!isNaN(latVal) && !isNaN(lonVal)) {
+                    const x = (lonVal - originLon) * SCALE * 0.95; // Longitude to X
+                    const z = -(latVal - originLat) * SCALE;      // Latitude to Z
+
+                    const pos = new THREE.Vector3(x, 0, z);
+                    points.push(pos);
+
+                    // Safe mapping for other cols
+                    const locality = cols[4] || "Route Point";
+                    const updated = cols[6] || "";
+                    waypoints.push({ locality, updated, battery: 100 });
+                }
+            });
+
+            console.log("Processed points:", points.length);
+            if (points.length < 2) throw new Error("Not enough valid GPS points to create a track (minimum 2 required)");
+
+            // Create Visual Track
+            const curve = new THREE.CatmullRomCurve3(points);
+            const geometry = new THREE.TubeGeometry(curve, Math.min(200, points.length * 2), 0.2, 8, false);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x38bdf8,
+                emissive: 0x38bdf8,
+                emissiveIntensity: 0.5,
+                wireframe: true
+            });
+            track = new THREE.Mesh(geometry, material);
+            scene.add(track);
+
+            // Set initial train position if it exists
+            if (train && points.length > 0) train.position.copy(points[0]);
+
+            // Initial Nature
+            spawnTreesAlongRoute();
+        }
+
+        function createTrain() {
+            const group = new THREE.Group();
+
+            // 1. Sleek Main Body (Lower part) - Metallic Silver
+            const bodyGeo = new THREE.CapsuleGeometry(0.5, 2.5, 4, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: 0xcccccc,
+                metalness: 0.9,
+                roughness: 0.1,
+                envMapIntensity: 1
+            });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.rotation.x = Math.PI / 2;
+            body.scale.set(1.2, 1, 0.6); // Flattened car look
+            group.add(body);
+
+            // 2. Upper Cabin (Cockpit) - Dark Glass
+            const cabinGeo = new THREE.SphereGeometry(0.45, 16, 16);
+            const cabinMat = new THREE.MeshStandardMaterial({
+                color: 0x0a0a0a,
+                metalness: 1,
+                roughness: 0,
+                transparent: true,
+                opacity: 0.9
+            });
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.set(0, 0.2, 0.2);
+            cabin.scale.set(1, 0.5, 2.5);
+            group.add(cabin);
+
+            // 3. Front LED Strip (Glow)
+            const ledGeo = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 16, 1, true, 0, Math.PI);
+            const ledMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const led = new THREE.Mesh(ledGeo, ledMat);
+            led.rotation.z = Math.PI / 2;
+            led.position.set(0, 0, 1.5);
+            group.add(led);
+
+            // 4. Rear Taillight Strip (Cyan)
+            const tailGeo = new THREE.BoxGeometry(1.2, 0.1, 0.1);
+            const tailMat = new THREE.MeshBasicMaterial({ color: 0x39c5bb });
+            const tail = new THREE.Mesh(tailGeo, tailMat);
+            tail.position.set(0, 0, -1.6);
+            group.add(tail);
+
+            // 5. Bottom Hover Glow (Subtle)
+            const bottomGlowGeo = new THREE.PlaneGeometry(1.5, 3);
+            const bottomGlowMat = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.2,
+                side: THREE.DoubleSide
+            });
+            const bottomGlow = new THREE.Mesh(bottomGlowGeo, bottomGlowMat);
+            bottomGlow.rotation.x = Math.PI / 2;
+            bottomGlow.position.y = -0.4;
+            group.add(bottomGlow);
+
+            train = group;
+            scene.add(train);
+
+            if (points.length > 0) train.position.copy(points[0]);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Floating Effect
+            if (train) {
+                train.position.y = Math.sin(Date.now() * 0.003) * 0.1;
+            }
+
+            // Handle Real-time Controls (W / S)
+            if (keys.w) {
+                speed = Math.min(speed + 0.01, maxSpeed); // Intense acceleration
+                if (!isRunning && speed > 0) {
+                    isRunning = true;
+                    updateStartButtonUI();
+                }
+            }
+            if (keys.s) {
+                speed = Math.max(speed - 0.02, 0); // Aggressive braking
+            }
+
+            if (isRunning && currentIndex < points.length - 1) {
+                const target = points[currentIndex + 1];
+                const direction = new THREE.Vector3().subVectors(target, train.position).normalize();
+
+                // Move train
+                train.position.add(direction.multiplyScalar(speed));
+
+                // Rotate train to look at target
+                train.lookAt(target);
+
+                const dist = train.position.distanceTo(target);
+                if (dist < 0.5) {
+                    currentIndex++;
+                }
+            }
+
+            // Continuous UI Update
+            if (waypoints.length > 0) {
+                locId.textContent = waypoints[currentIndex]?.locality || "Unknown District";
+                speedId.textContent = (speed * 1000 * (isRunning ? 1 : 0)).toFixed(0);
+            }
+
+            // Camera Logic
+            if (train) {
+                if (viewMode === 'follow') {
+                    const relativeCameraOffset = new THREE.Vector3(0, 5, -12);
+                    const cameraOffset = relativeCameraOffset.applyMatrix4(train.matrixWorld);
+                    camera.position.lerp(cameraOffset, 0.1);
+                    camera.lookAt(train.position);
+                } else {
+                    // Cockpit
+                    const relativeCameraOffset = new THREE.Vector3(0, 0.4, 1);
+                    const cameraOffset = relativeCameraOffset.applyMatrix4(train.matrixWorld);
+                    camera.position.copy(cameraOffset);
+
+                    const lookTarget = new THREE.Vector3(0, 0, 5).applyMatrix4(train.matrixWorld);
+                    camera.lookAt(lookTarget);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function parseCSVRow(str) {
+            const arr = [];
+            let quote = false;
+            let col = '';
+            for (let i = 0; i < str.length; i++) {
+                const char = str[i];
+                if (char === '"') quote = !quote;
+                else if (char === ',' && !quote) { arr.push(col.trim()); col = ''; }
+                else col += char;
+            }
+            arr.push(col.trim());
+            return arr;
+        }
+
+        init();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+
+</html>

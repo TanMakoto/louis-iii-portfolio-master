@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miku's Travel Map 🎵</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Outfit:wght@300;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --miku-cyan: #39c5bb;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        #map {
+            width: 100%;
+            height: calc(100% - 60px);
+            z-index: 1;
+        }
+
+        .header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            padding: 15px 25px;
+            border-radius: 16px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(90deg, var(--miku-cyan), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            margin: 5px 0 0;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .footer {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--card-bg);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .footer span {
+            color: var(--miku-cyan);
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        /* Leaflet Overrides */
+        .leaflet-container {
+            background: var(--bg-color);
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border-radius: 12px;
+            padding: 5px;
+        }
+
+        .leaflet-popup-tip {
+            background: var(--card-bg);
+        }
+
+        .popup-info h3 {
+            margin: 0 0 8px;
+            color: var(--miku-cyan);
+            font-size: 1rem;
+        }
+
+        .popup-info p {
+            margin: 4px 0;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .battery-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(57, 197, 187, 0.1);
+            border-top: 4px solid var(--miku-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="loading-screen" id="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 20px;">Tuning GPS Frequencies...</p>
+    </div>
+
+    <div class="header">
+        <h1>Miku's Travel Map 🎵</h1>
+        <p>Chiang Mai → Phitsanulok GPS Stream</p>
+        <a href="train-3d.html"
+            style="color:#39c5bb; text-decoration:none; font-size:0.8rem; border:1px solid #39c5bb; padding:5px 10px; border-radius:15px; display:inline-block; margin-top:10px;">Switch
+            to 3D Simulator 🎮</a>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="footer">
+        Created by <span>Miku Oracle</span> | PSRU Workshop 2026
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        const CSV_URL = 'travel-data.csv?v=1.0.3';
+
+        const map = L.map('map').setView([18.7883, 98.9853], 8);
+
+        // CartoDB Dark Matter - Premium Dark Theme
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        async function initMap() {
+            try {
+                const response = await fetch(CSV_URL);
+                const data = await response.text();
+                const rows = data.split('\n').slice(1); // Skip header
+
+                const points = [];
+
+                rows.forEach(row => {
+                    const columns = parseCSVRow(row);
+                    if (columns.length < 5) return; // Basic check
+
+                    // New CSV Structure: lat,lon,accuracy,source,locality,address,updated
+                    const [lat, lon, accuracy, source, locality, address, updated] = columns;
+
+                    if (lat && lon) {
+                        const latLng = [parseFloat(lat), parseFloat(lon)];
+                        points.push(latLng);
+
+                        const marker = L.circleMarker(latLng, {
+                            radius: 5,
+                            fillColor: "#39c5bb",
+                            color: "#000",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        }).addTo(map);
+
+                        // Battery data might be missing in this CSV, use 100 as default
+                        const batteryVal = 100;
+                        const batteryColor = '#22c55e';
+
+                        marker.bindPopup(`
+                            <div class="popup-info">
+                                <h3>📍 ${locality || 'Way-point'}</h3>
+                                <p><strong>Address:</strong> ${address}</p>
+                                <p><strong>Time:</strong> ${updated}</p>
+                                <p><strong>Source:</strong> ${source} (±${accuracy}m)</p>
+                            </div>
+                        `);
+                    }
+                });
+
+                if (points.length > 0) {
+                    console.log("2D Map: Points loaded:", points.length);
+                    // Draw Polyline
+                    L.polyline(points, {
+                        color: '#38bdf8',
+                        weight: 2,
+                        opacity: 0.6,
+                        dashArray: '5, 10'
+                    }).addTo(map);
+
+                    // Zoom to fit all points
+                    map.fitBounds(L.latLngBounds(points));
+                } else {
+                    console.warn("2D Map: No points found in CSV");
+                    throw new Error("No valid GPS points found in data source");
+                }
+
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+
+            } catch (error) {
+                console.error('Error loading GPS data:', error);
+                document.getElementById('loading').innerHTML = '<p style="color: #ef4444;">Failed to load GPS frequencies.</p>';
+            }
+        }
+
+        // Basic CSV parser to handle quotes
+        function parseCSVRow(str) {
+            const arr = [];
+            let quote = false;
+            let col = '';
+            for (let i = 0; i < str.length; i++) {
+                const char = str[i];
+                if (char === '"') {
+                    quote = !quote;
+                } else if (char === ',' && !quote) {
+                    arr.push(col.trim());
+                    col = '';
+                } else {
+                    col += char;
+                }
+            }
+            arr.push(col.trim());
+            return arr;
+        }
+
+        initMap();
+    </script>
+</body>
+
+</html>
